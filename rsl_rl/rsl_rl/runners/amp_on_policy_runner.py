@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import statistics
 import time
@@ -126,6 +127,7 @@ class AmpOnPolicyRunner:
 
         # initialize algorithm
         alg_class = eval(self.alg_cfg.pop("class_name"))
+        alg_kwargs = self._filter_algorithm_cfg(alg_class)
         self.alg: AMPPPO = alg_class(
             policy,
             discriminator,
@@ -133,7 +135,7 @@ class AmpOnPolicyRunner:
             amp_normalizer,
             device=self.device,
             min_std=min_std,
-            **self.alg_cfg,
+            **alg_kwargs,
             multi_gpu_cfg=self.multi_gpu_cfg,
         )
 
@@ -170,6 +172,14 @@ class AmpOnPolicyRunner:
         self.tot_time = 0
         self.current_learning_iteration = 0
         self.git_status_repos = [rsl_rl.__file__]
+
+    def _filter_algorithm_cfg(self, alg_class):
+        valid_args = set(inspect.signature(alg_class.__init__).parameters)
+        alg_kwargs = {key: value for key, value in self.alg_cfg.items() if key in valid_args}
+        ignored_args = sorted(set(self.alg_cfg) - set(alg_kwargs))
+        if ignored_args:
+            print(f"[INFO] Ignoring unsupported {alg_class.__name__} config entries: {ignored_args}")
+        return alg_kwargs
 
     def learn(self, num_learning_iterations: int, init_at_random_ep_len: bool = False):  # noqa: C901
         # initialize writer

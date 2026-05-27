@@ -77,4 +77,9 @@ def update_rsl_rl_cfg(agent_cfg: BaseAgentConfig, args_cli: argparse.Namespace):
         agent_cfg.wandb_project = args_cli.log_project_name
         agent_cfg.neptune_project = args_cli.log_project_name
 
+    # IsaacLab's newer RSL-RL config includes an optimizer field, but this
+    # repository's AMP-enabled RSL-RL fork is based on rsl-rl 2.3.1.
+    if hasattr(agent_cfg.algorithm, "optimizer"):
+        del agent_cfg.algorithm.optimizer
+
     return agent_cfg

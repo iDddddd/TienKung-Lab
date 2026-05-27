@@ -17,6 +17,14 @@
 # and is distributed under the BSD-3-Clause license.
 
 import argparse
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+LOCAL_RSL_RL = REPO_ROOT / "rsl_rl"
+for path in (str(REPO_ROOT), str(LOCAL_RSL_RL)):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 from isaaclab.app import AppLauncher
 

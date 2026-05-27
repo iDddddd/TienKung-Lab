@@ -29,7 +29,7 @@ from isaaclab.sensors import ContactSensor, RayCaster
 from isaaclab.sensors.camera import TiledCamera
 from isaaclab.sim import PhysxCfg, SimulationContext
 from isaaclab.utils.buffers import CircularBuffer, DelayBuffer
-from isaaclab.utils.math import quat_apply, quat_conjugate, quat_rotate
+from isaaclab.utils.math import quat_apply, quat_conjugate
 from scipy.spatial.transform import Rotation
 
 from legged_lab.envs.tienkung.run_cfg import TienKungRunFlatEnvCfg
@@ -307,12 +307,12 @@ class TienKungEnv(VecEnv):
         left_hand_pos = (
             self.robot.data.body_state_w[:, self.elbow_body_ids[0], :3]
             - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[0], 3:7], self.left_arm_local_vec)
+            + quat_apply(self.robot.data.body_state_w[:, self.elbow_body_ids[0], 3:7], self.left_arm_local_vec)
         )
         right_hand_pos = (
             self.robot.data.body_state_w[:, self.elbow_body_ids[1], :3]
             - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[1], 3:7], self.right_arm_local_vec)
+            + quat_apply(self.robot.data.body_state_w[:, self.elbow_body_ids[1], 3:7], self.right_arm_local_vec)
         )
         left_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), left_hand_pos)
         right_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), right_hand_pos)
@@ -574,12 +574,12 @@ class TienKungEnv(VecEnv):
         left_hand_pos = (
             self.robot.data.body_state_w[:, self.elbow_body_ids[0], :3]
             - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[0], 3:7], self.left_arm_local_vec)
+            + quat_apply(self.robot.data.body_state_w[:, self.elbow_body_ids[0], 3:7], self.left_arm_local_vec)
         )
         right_hand_pos = (
             self.robot.data.body_state_w[:, self.elbow_body_ids[1], :3]
             - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[1], 3:7], self.right_arm_local_vec)
+            + quat_apply(self.robot.data.body_state_w[:, self.elbow_body_ids[1], 3:7], self.right_arm_local_vec)
         )
         left_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), left_hand_pos)
         right_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), right_hand_pos)
