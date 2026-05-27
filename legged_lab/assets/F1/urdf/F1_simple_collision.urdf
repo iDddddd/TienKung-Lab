@@ -1,0 +1,1002 @@
+<?xml version="1.0" encoding="utf-8"?>
+ <!-- F1_simple_collision.urdf: 将腿部/手臂复杂mesh碰撞体替换为基本几何体，
+      适合导入IsaacLab进行强化学习训练（降低碰撞计算开销、避免mesh碰撞不稳定）。
+      视觉保持mesh，惯性参数与F1.urdf完全一致。 -->
+ <robot name="F1">
+   <mujoco>
+     <compiler meshdir="../meshes/" balanceinertia="true" discardvisual="false" />
+   </mujoco>
+ 
+   <!-- ======================== pelvis ======================== -->
+   <link name="pelvis">
+     <inertial>
+       <origin xyz="0.03248 -2.2731E-08 0.062366" rpy="0 0 3.14159265358979" />
+       <mass value="7.2" />
+       <inertia ixx="0.09796773" ixy="0" ixz="-0.02179488" iyy="0.0983936" iyz="0" izz="0.10472194" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 3.14159265358979" />
+       <geometry><mesh filename="meshes/pelvis.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 两个球体近似左右臀部，贴合屁股形状便于坐下等动作 -->
+     <!-- 左臀：x=-0.04(后侧), y=+0.055, z=-0.015(下方) -->
+     <collision>
+       <origin xyz="-0.03 0.06 -0.018" rpy="0 0 0" />
+       <geometry><sphere radius="0.065" /></geometry>
+     </collision>
+     <!-- 右臀：与左臀对称 -->
+     <collision>
+       <origin xyz="-0.03 -0.06 -0.018" rpy="0 0 0" />
+       <geometry><sphere radius="0.065" /></geometry>
+     </collision>
+   </link>
+ 
+   <!-- ====================== LEFT LEG ======================= -->
+ 
+   <!-- left_hip_roll_link: 小型连接件，移除网格碰撞 -->
+   <link name="left_hip_roll_link">
+     <inertial>
+       <origin xyz="0.001779 0.020882 1.8535E-06" rpy="0 3.14159265358979 0" />
+       <mass value="1.8" />
+       <inertia ixx="0.00287278" ixy="-0.00011112" ixz="0" iyy="0.00317726" iyz="0" izz="0.00267187" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 3.14159265358979 0" />
+       <geometry><mesh filename="meshes/left_hip_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞（小型连接件） -->
+   </link>
+   <joint name="left_hip_roll_joint" type="revolute">
+     <origin xyz="0.0310099999959327 0.0660000000000372 -0.0522173304559107" rpy="0 0 0" />
+     <parent link="pelvis" />
+     <child link="left_hip_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-0.34907" upper="0.87266" effort="60" velocity="13.09" />
+   </joint>
+ 
+   <!-- left_hip_pitch_link: 髋关节俯仰连接件，圆柱近似电机壳体（"大屁股"特征） -->
+   <link name="left_hip_pitch_link">
+     <inertial>
+       <origin xyz="-0.0063393 0.038449 -0.040823" rpy="0 3.14159265358979 0" />
+       <mass value="2.3" />
+       <inertia ixx="0.016845" ixy="0.00045424" ixz="0.00037614" iyy="0.018463" iyz="0.0020361" izz="0.020387" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 3.14159265358979 0" />
+       <geometry><mesh filename="meshes/left_hip_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞（与相邻关节重叠无法避免，视觉保留mesh） -->
+   </link>
+   <joint name="left_hip_pitch_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="left_hip_roll_link" />
+     <child link="left_hip_pitch_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-2.0944" upper="0.17453" effort="60" velocity="13.09" />
+   </joint>
+ 
+   <!-- left_hip_yaw_link: 大腿段(~370mm)，用多段圆柱近似。膝盖附近收窄，避免屈膝自碰撞。 -->
+   <link name="left_hip_yaw_link">
+     <inertial>
+       <origin xyz="-0.0034111 0.0040172 -0.21195" rpy="0 0 0" />
+       <mass value="1.9" />
+       <inertia ixx="0.098131" ixy="0.00027487" ixz="0.0020213" iyy="0.099231" iyz="-0.0010082" izz="0.0093196" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_hip_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 上段：缩小并下移，避免与 pelvis mesh 自碰撞 -->
+     <collision>
+       <origin xyz="0 0 -0.13" rpy="0 0 0" />
+       <geometry><cylinder radius="0.040" length="0.06" /></geometry>
+     </collision>
+     <!-- 中上段：大腿主要体积，避开膝盖附近 -->
+     <collision>
+       <origin xyz="-0.012 0 -0.195" rpy="0 0 0" />
+       <geometry><cylinder radius="0.050" length="0.10" /></geometry>
+     </collision>
+     <!-- 中下段：开始收窄，补足大腿下半段但不侵入膝关节空间 -->
+     <collision>
+       <origin xyz="-0.020 0 -0.275" rpy="0 0 0" />
+       <geometry><cylinder radius="0.040" length="0.060" /></geometry>
+     </collision>
+     <!-- 下段：靠近膝关节的细圆柱，给小腿上端留出屈膝空间 -->
+     <collision>
+       <origin xyz="-0.028 0 -0.335" rpy="0 0 0" />
+       <geometry><cylinder radius="0.026" length="0.035" /></geometry>
+     </collision>
+     <!-- 关节处偏置小圆柱：只保留很小的末端覆盖，避免和小腿上端互顶 -->
+     <collision>
+       <origin xyz="-0.034 0 -0.370" rpy="0 0 0" />
+       <geometry><cylinder radius="0.012" length="0.010" /></geometry>
+     </collision>
+   </link>
+   <joint name="left_hip_yaw_joint" type="revolute">
+     <origin xyz="0 0.0119999999999601 0" rpy="0 -0.0174532925199601 0" />
+     <parent link="left_hip_pitch_link" />
+     <child link="left_hip_yaw_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="-0.87266" upper="1.5708" effort="36" velocity="13.614" />
+   </joint>
+ 
+  <!-- left_knee_link: 小腿段(~411mm)，用两段圆柱近似。上端收窄，整体延长以贴近视觉小腿。 -->
+   <link name="left_knee_link">
+     <inertial>
+       <origin xyz="-0.015112 0.0018999 -0.18828" rpy="0 0 0" />
+       <mass value="1.3" />
+       <inertia ixx="0.084815" ixy="-6.89E-05" ixz="0.0041094" iyy="0.08528" iyz="-0.00027868" izz="0.0030214" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_knee_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+    <!-- 小腿上段：向膝盖方向延长但保持细，避免屈膝时与大腿末端自碰撞 -->
+    <collision>
+      <origin xyz="0 0 -0.125" rpy="0 0 0" />
+      <geometry><cylinder radius="0.028" length="0.13" /></geometry>
+    </collision>
+    <!-- 小腿主体：下端收在脚踝上方，避免伸进脚部碰撞体 -->
+    <collision>
+      <origin xyz="0 0 -0.300" rpy="0 0 0" />
+      <geometry><cylinder radius="0.030" length="0.16" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0 0 -0.060" rpy="0 0 0" />
+      <geometry><sphere radius="0.028" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0 0 -0.380" rpy="0 0 0" />
+      <geometry><sphere radius="0.030" /></geometry>
+    </collision>
+  </link>
+   <joint name="left_knee_joint" type="revolute">
+     <origin xyz="-0.036584110610468 -0.00349999999999995 -0.369445360283527" rpy="0 0.0235973553628798 0" />
+     <parent link="left_hip_yaw_link" />
+     <child link="left_knee_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="0" upper="2.618" effort="60" velocity="13.09" />
+   </joint>
+ 
+   <!-- left_ankle_pitch_link: 微型连接件，移除碰撞 -->
+   <link name="left_ankle_pitch_link">
+     <inertial>
+       <origin xyz="0.003189 -0.00023136 7.7566E-08" rpy="0 0 0" />
+       <mass value="0.0092686" />
+       <inertia ixx="2.002E-07" ixy="1.6689E-12" ixz="-4.4717E-13" iyy="1.09E-06" iyz="-3.308E-10" izz="8.4367E-07" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_ankle_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="left_ankle_pitch_joint" type="revolute">
+     <origin xyz="0.0156729311625504 0 -0.410797223978904" rpy="0 0 0" />
+     <parent link="left_knee_link" />
+     <child link="left_ankle_pitch_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-0.43633" upper="0.7854" effort="21.213" velocity="1.6499" />
+   </joint>
+ 
+  <!-- left_ankle_roll_link: 足部，用10点球近似足底接触 -->
+   <link name="left_ankle_roll_link">
+     <inertial>
+       <origin xyz="0.029519 0.0033792 -0.027493" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.00080149" ixy="0.00014242" ixz="-0.00069678" iyy="0.00283614" iyz="-7.132E-05" izz="0.00238444" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_ankle_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+    <collision>
+      <origin xyz="-0.05 0.02 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.05 -0.02 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.005 0.018 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.005 -0.018 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.04 0.015 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.04 -0.015 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.085 0.03 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.085 -0.03 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.13 0.035 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.13 -0.035 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+   </link>
+   <joint name="left_ankle_roll_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="left_ankle_pitch_link" />
+     <child link="left_ankle_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-0.2618" upper="0.2618" effort="28.978" velocity="3.6549" />
+   </joint>
+ 
+   <!-- ====================== RIGHT LEG ====================== -->
+ 
+   <!-- right_hip_roll_link: 小型连接件，移除碰撞 -->
+   <link name="right_hip_roll_link">
+     <inertial>
+       <origin xyz="0.001779 -0.020882 -1.841E-06" rpy="0 0 0" />
+       <mass value="1.8" />
+       <inertia ixx="0.0028728" ixy="-0.00011112" ixz="0" iyy="0.0031773" iyz="0" izz="0.0026719" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_hip_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_hip_roll_joint" type="revolute">
+     <origin xyz="0.0310099999959326 -0.0660000000000373 -0.0522173304551733" rpy="0 0 0" />
+     <parent link="pelvis" />
+     <child link="right_hip_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-0.87266" upper="0.34907" effort="60" velocity="13.09" />
+   </joint>
+ 
+   <!-- right_hip_pitch_link: 髋关节俯仰连接件，圆柱近似电机壳体（"大屁股"特征） -->
+   <link name="right_hip_pitch_link">
+     <inertial>
+       <origin xyz="-0.0063393 -0.038449 -0.040823" rpy="0 3.14159265358979 0" />
+       <mass value="2.3" />
+       <inertia ixx="0.016845" ixy="-0.00045424" ixz="0.00037614" iyy="0.018463" iyz="-0.0020361" izz="0.020387" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_hip_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞（与相邻关节重叠无法避免，视觉保留mesh） -->
+   </link>
+   <joint name="right_hip_pitch_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="right_hip_roll_link" />
+     <child link="right_hip_pitch_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-2.094395102" upper="0.174532925" effort="60" velocity="13.09" />
+   </joint>
+ 
+   <!-- right_hip_yaw_link: 大腿段，多段圆柱。膝盖附近收窄，避免屈膝自碰撞。 -->
+   <link name="right_hip_yaw_link">
+     <inertial>
+       <origin xyz="-0.0035076 -0.0038258 -0.21232" rpy="0 0 0" />
+       <mass value="1.9" />
+       <inertia ixx="0.09850456" ixy="-0.00028401" ixz="0.00208565" iyy="0.09959335" iyz="0.00088626" izz="0.00931665" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_hip_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 上段：缩小并下移，避免与 pelvis mesh 自碰撞 -->
+     <collision>
+       <origin xyz="0 0 -0.13" rpy="0 0 0" />
+       <geometry><cylinder radius="0.040" length="0.06" /></geometry>
+     </collision>
+     <collision>
+       <origin xyz="-0.012 0 -0.195" rpy="0 0 0" />
+       <geometry><cylinder radius="0.050" length="0.10" /></geometry>
+     </collision>
+     <!-- 中下段：开始收窄，补足大腿下半段但不侵入膝关节空间 -->
+     <collision>
+       <origin xyz="-0.020 0 -0.275" rpy="0 0 0" />
+       <geometry><cylinder radius="0.040" length="0.060" /></geometry>
+     </collision>
+     <!-- 下段：靠近膝关节的细圆柱，给小腿上端留出屈膝空间 -->
+     <collision>
+       <origin xyz="-0.028 0 -0.335" rpy="0 0 0" />
+       <geometry><cylinder radius="0.026" length="0.035" /></geometry>
+     </collision>
+     <!-- 关节处偏置小圆柱：只保留很小的末端覆盖，避免和小腿上端互顶 -->
+     <collision>
+       <origin xyz="-0.034 0 -0.370" rpy="0 0 0" />
+       <geometry><cylinder radius="0.012" length="0.010" /></geometry>
+     </collision>
+   </link>
+   <joint name="right_hip_yaw_joint" type="revolute">
+     <origin xyz="0 -0.0120000000000003 0" rpy="0 -0.0174532925199603 0" />
+     <parent link="right_hip_pitch_link" />
+     <child link="right_hip_yaw_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="-1.570796327" upper="0.872664626" effort="36" velocity="13.61356817" />
+   </joint>
+ 
+  <!-- right_knee_link: 小腿段，用两段圆柱近似。上端收窄，整体延长以贴近视觉小腿。 -->
+   <link name="right_knee_link">
+     <inertial>
+       <origin xyz="-0.015112 -0.0018996 -0.18828" rpy="0 0 0" />
+       <mass value="1.3" />
+       <inertia ixx="0.084815" ixy="6.891E-05" ixz="0.0041094" iyy="0.08528" iyz="0.00027855" izz="0.0030214" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_knee_link.STL" /></geometry>
+       <material name=""><color rgba="0.89804 0.91765 0.92941 1" /></material>
+     </visual>
+    <!-- 小腿上段：向膝盖方向延长但保持细，避免屈膝时与大腿末端自碰撞 -->
+    <collision>
+      <origin xyz="0 0 -0.125" rpy="0 0 0" />
+      <geometry><cylinder radius="0.028" length="0.13" /></geometry>
+    </collision>
+    <!-- 小腿主体：下端收在脚踝上方，避免伸进脚部碰撞体 -->
+    <collision>
+      <origin xyz="0 0 -0.300" rpy="0 0 0" />
+      <geometry><cylinder radius="0.030" length="0.16" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0 0 -0.060" rpy="0 0 0" />
+      <geometry><sphere radius="0.028" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0 0 -0.380" rpy="0 0 0" />
+      <geometry><sphere radius="0.030" /></geometry>
+    </collision>
+   </link>
+   <joint name="right_knee_joint" type="revolute">
+     <origin xyz="-0.0365841106104591 0.00350000000001008 -0.369445360283526" rpy="0 0.0235973553628798 0" />
+     <parent link="right_hip_yaw_link" />
+     <child link="right_knee_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="0" upper="2.618" effort="60" velocity="13.09" />
+   </joint>
+ 
+   <!-- right_ankle_pitch_link: 微型连接件，移除碰撞 -->
+   <link name="right_ankle_pitch_link">
+     <inertial>
+       <origin xyz="0.003189 0.00023148 9.3029E-08" rpy="0 0 0" />
+       <mass value="0.0092688" />
+       <inertia ixx="2.0021E-07" ixy="-1.4666E-12" ixz="9.7088E-14" iyy="8.3164E-07" iyz="3.3092E-10" izz="8.4368E-07" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_ankle_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="0.89804 0.91765 0.92941 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_ankle_pitch_joint" type="revolute">
+     <origin xyz="0.0156729311625503 0 -0.410797223978904" rpy="0 0 0" />
+     <parent link="right_knee_link" />
+     <child link="right_ankle_pitch_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-0.43633" upper="0.7854" effort="21.213" velocity="1.6499" />
+   </joint>
+ 
+  <!-- right_ankle_roll_link: 足部10点球 -->
+   <link name="right_ankle_roll_link">
+     <inertial>
+       <origin xyz="0.029519 -0.0033792 -0.027493" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.00080149" ixy="-0.00014242" ixz="-0.00069678" iyy="0.00283614" iyz="7.132E-05" izz="0.00238444" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_ankle_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+    <collision>
+      <origin xyz="-0.05 0.02 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.05 -0.02 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.005 0.018 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="-0.005 -0.018 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.04 0.015 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.04 -0.015 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.085 0.03 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.085 -0.03 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.13 0.035 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.13 -0.035 -0.055" rpy="0 0 0" />
+      <geometry><sphere radius="0.005" /></geometry>
+    </collision>
+   </link>
+   <joint name="right_ankle_roll_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="right_ankle_pitch_link" />
+     <child link="right_ankle_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-0.261799388" upper="0.261799388" effort="28.97777479" velocity="3.654854478" />
+   </joint>
+ 
+   <!-- ==================== IMU (pelvis) ==================== -->
+   <link name="imu_in_pelvis_link">
+     <inertial>
+       <origin xyz="0.00084123 -0.00031758 -0.0013238" rpy="0 0 0" />
+       <mass value="0.0043067" />
+       <inertia ixx="2.1185E-07" ixy="7.4473E-11" ixz="3.4054E-09" iyy="2.0537E-07" iyz="3.7774E-11" izz="3.5934E-07" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/imu_in_pelvis_link.STL" /></geometry>
+       <material name=""><color rgba="0.50196 0.50196 0.50196 1" /></material>
+     </visual>
+     <!-- IMU无需碰撞 -->
+   </link>
+   <joint name="imu_in_pelvis_joint" type="fixed">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="pelvis" />
+     <child link="imu_in_pelvis_link" />
+     <axis xyz="0 0 0" />
+   </joint>
+ 
+   <!-- ====================== WAIST ========================= -->
+ 
+   <!-- waist_pitch_link: 微型连接件(mass=0.05)，移除碰撞 -->
+   <link name="waist_pitch_link">
+     <inertial>
+       <origin xyz="-0.027981 2.4357E-05 0.045415" rpy="0 0 0" />
+       <mass value="0.05" />
+       <inertia ixx="0.00017074" ixy="-1.8497E-07" ixz="1.2953E-09" iyy="0.00013022" iyz="7.1096E-08" izz="0.00021331" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/waist_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="waist_pitch_joint" type="revolute">
+     <origin xyz="0.0845100000000001 0 0.0847500000000002" rpy="0 0 0" />
+     <parent link="pelvis" />
+     <child link="waist_pitch_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-0.261799388" upper="0.261799388" effort="42.30755119" velocity="1.543717074" />
+   </joint>
+ 
+   <!-- waist_roll_link: 微型连接件(mass=0.05)，移除碰撞 -->
+   <link name="waist_roll_link">
+     <inertial>
+       <origin xyz="0.00051863 2.4357E-05 -0.0015845" rpy="0 0 0" />
+       <mass value="0.05" />
+       <inertia ixx="0.00017074" ixy="-1.8497E-07" ixz="1.2953E-09" iyy="0.00013022" iyz="7.1096E-08" izz="0.00021331" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/waist_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="waist_roll_joint" type="revolute">
+     <origin xyz="-0.0285 0 0.0469999999999999" rpy="0 0 0" />
+     <parent link="waist_pitch_link" />
+     <child link="waist_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-0.2618" upper="0.2618" effort="57.956" velocity="1.5437" />
+   </joint>
+ 
+   <!-- waist_yaw_link: 躯干主体，圆柱+双球近似（替换mesh以消除臂部自碰撞） -->
+   <link name="waist_yaw_link">
+     <inertial>
+       <origin xyz="-0.0096885 4.2491E-08 0.14918" rpy="0 0 0" />
+       <mass value="6.2" />
+       <inertia ixx="0.21689349" ixy="0" ixz="-0.01969984" iyy="0.21493654" iyz="0" izz="0.07655368" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/waist_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 圆柱：躯干主体，z=0→0.220，radius=0.085 -->
+     <collision>
+       <origin xyz="-0.010 0 0.110" rpy="0 0 0" />
+       <geometry><cylinder radius="0.085" length="0.220" /></geometry>
+     </collision>
+     <!-- 左胸球 -->
+     <collision>
+       <origin xyz="0.059 0.065 0.133" rpy="0 0 0" />
+       <geometry><sphere radius="0.06" /></geometry>
+     </collision>
+     <!-- 右胸球（与左胸对称） -->
+     <collision>
+       <origin xyz="0.059 -0.065 0.133" rpy="0 0 0" />
+       <geometry><sphere radius="0.06" /></geometry>
+     </collision>
+   </link>
+   <joint name="waist_yaw_joint" type="revolute">
+     <origin xyz="0 0 0.0230000000007344" rpy="0 0 0" />
+     <parent link="waist_roll_link" />
+     <child link="waist_yaw_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="-1.396263402" upper="1.396263402" effort="36" velocity="13.61356817" />
+   </joint>
+ 
+   <!-- =================== LEFT ARM ========================= -->
+ 
+   <!-- left_scapula_roll_link: 肩胛连接件，移除碰撞 -->
+   <link name="left_scapula_roll_link">
+     <inertial>
+       <origin xyz="0.0023115 0.0028436 -0.0021963" rpy="0 0 0" />
+       <mass value="1" />
+       <inertia ixx="0.00066669" ixy="-2.258E-05" ixz="-6.068E-05" iyy="0.0010435" iyz="2.092E-05" izz="0.00064103" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_scapula_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="left_scapula_roll_joint" type="revolute">
+     <origin xyz="-0.060685736475412 0.0540000000000755 0.241631706091158" rpy="0 -0.006144062842914 0" />
+     <parent link="waist_yaw_link" />
+     <child link="left_scapula_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="0" upper="0.20944" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- left_shoulder_roll_link: 小型连接件，移除碰撞 -->
+   <link name="left_shoulder_roll_link">
+     <inertial>
+       <origin xyz="-3.9984E-05 -0.0043752 8.0122E-07" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.00073253" ixy="0" ixz="0" iyy="0.00039764" iyz="0" izz="0.00045798" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_shoulder_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="left_shoulder_pitch_joint" type="revolute">
+     <origin xyz="0 0.0694999999999317 3.26695449071046E-05" rpy="0 0 0" />
+     <parent link="left_scapula_roll_link" />
+     <child link="left_shoulder_roll_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-3.0543" upper="0.5236" effort="15" velocity="15.708" />
+   </joint>
+ 
+   <!-- left_shoulder_pitch_link: 小型连接件，移除碰撞 -->
+   <link name="left_shoulder_pitch_link">
+     <inertial>
+       <origin xyz="0.002027 0.092107 -0.0050939" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.0093043" ixy="-9.21E-05" ixz="3.94E-05" iyy="0.0011761" iyz="-0.00061651" izz="0.0094503" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_shoulder_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="left_shoulder_roll_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="left_shoulder_roll_link" />
+     <child link="left_shoulder_pitch_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-1.5707963" upper="1.5707963" effort="15" velocity="15.708" />
+   </joint>
+ 
+   <!-- left_shoulder_yaw_link: 大臂段(~133mm，沿+y方向)，用圆柱近似 -->
+   <link name="left_shoulder_yaw_link">
+     <inertial>
+       <origin xyz="-0.0043859 0.088405 -0.0073575" rpy="0 0 0" />
+       <mass value="0.095224" />
+       <inertia ixx="0.00102096" ixy="-7.8516E-06" ixz="1.7077E-07" iyy="2.1572E-05" iyz="1.5349E-05" izz="0.0010257" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_shoulder_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 圆柱沿y轴方向，近端偏置至y=0.058避免胶囊半球端伸入躯干导致自碰撞 -->
+     <!-- replace_cylinders_with_capsules=True时胶囊有效范围=[center-half_len-r, center+half_len+r]，偏置后近端≈+0.003m -->
+     <collision>
+       <origin xyz="-0.004 0.058 -0.005" rpy="1.5708 0 0" />
+       <geometry><cylinder radius="0.030" length="0.050" /></geometry>
+     </collision>
+     <!-- 关节处偏置小圆柱（仿x2，覆盖大臂末端与肘关节之间盲区，x=-0.015偏置） -->
+     <collision>
+       <origin xyz="-0.015 0.108 -0.005" rpy="1.5708 0 0" />
+       <geometry><cylinder radius="0.025" length="0.030" /></geometry>
+     </collision>
+   </link>
+   <joint name="left_shoulder_yaw_joint" type="revolute">
+     <origin xyz="0 0.09599999999969 -0.00499999999999745" rpy="0 0 0" />
+     <parent link="left_shoulder_pitch_link" />
+     <child link="left_shoulder_yaw_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-1.0472" upper="1.0472" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- left_elbow_link: 前臂段(~228mm，沿+y方向)，用圆柱近似 -->
+   <link name="left_elbow_link">
+     <inertial>
+       <origin xyz="0.0041861 0.11137 0.00065727" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.01100551" ixy="0.00043277" ixz="6.08E-06" iyy="0.00054143" iyz="-5.5E-06" izz="0.01098309" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_elbow_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 前臂碰撞体缩短变细，避开肘/腕关节附近的自碰撞 -->
+     <collision>
+       <origin xyz="0 0.145 0" rpy="1.5708 0 0" />
+       <geometry><cylinder radius="0.025" length="0.080" /></geometry>
+     </collision>
+   </link>
+   <joint name="left_elbow_joint" type="revolute">
+     <origin xyz="-0.00879978664805672 0.133000000000285 -0.0100000000029983" rpy="0 0 0" />
+     <parent link="left_shoulder_yaw_link" />
+     <child link="left_elbow_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="-2.3562" upper="0" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- left_wrist_yaw_link: 微型连接件，移除碰撞 -->
+   <link name="left_wrist_yaw_link">
+     <inertial>
+       <origin xyz="0.0021245 0.044994 0.0019286" rpy="0 0 0" />
+       <mass value="0.052405" />
+       <inertia ixx="0.00018236" ixy="-2.7271E-06" ixz="-2.4429E-07" iyy="9.5627E-06" iyz="-3.2468E-06" izz="0.0001827" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_wrist_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="left_wrist_yaw_joint" type="revolute">
+     <origin xyz="0.00199898198552831 0.0939999674772521 0" rpy="0 0 0" />
+     <parent link="left_elbow_link" />
+     <child link="left_wrist_yaw_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-0.87266" upper="0.87266" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- left_wrist_roll_link: 手部用box近似(沿+y展开) -->
+   <link name="left_wrist_roll_link">
+     <inertial>
+       <origin xyz="-2.3923E-10 -4.9291E-09 0.0010567" rpy="0 0 0" />
+       <mass value="0.0018868" />
+       <inertia ixx="1.584E-08" ixy="1.0399E-13" ixz="1.2828E-13" iyy="1.1887E-07" iyz="-1.0262E-13" izz="1.0848E-07" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_wrist_roll_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 手部 box 保守缩小，避免与前臂/身体产生自碰撞 -->
+     <collision>
+       <origin xyz="0.015 0.045 -0.015" rpy="0 0 0" />
+       <geometry><box size="0.045 0.060 0.030" /></geometry>
+     </collision>
+   </link>
+   <joint name="left_wrist_roll_joint" type="revolute">
+     <origin xyz="0.00449816436902692 0.1340001082902 -0.000857792944531033" rpy="0 0 2.16550978844195E-05" />
+     <parent link="left_wrist_yaw_link" />
+     <child link="left_wrist_roll_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="-0.34907" upper="0.34907" effort="3" velocity="16.441" />
+   </joint>
+ 
+   <!-- left_wrist_pitch_link: 手指处，移除碰撞 -->
+   <link name="left_wrist_pitch_link">
+     <inertial>
+       <origin xyz="0.014692 0.076244 -0.018529" rpy="0 0 0" />
+       <mass value="0.4" />
+       <inertia ixx="0.0032648" ixy="0.000456" ixz="-0.00013419" iyy="0.00054067" iyz="-0.00071989" izz="0.0033129" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/left_wrist_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="left_wrist_pitch_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="left_wrist_roll_link" />
+     <child link="left_wrist_pitch_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-1.221730476" upper="1.221730476" effort="3" velocity="16.441" />
+   </joint>
+ 
+   <!-- =================== RIGHT ARM ======================== -->
+ 
+   <!-- right_scapula_roll_link: 肩胛连接件，移除碰撞 -->
+   <link name="right_scapula_roll_link">
+     <inertial>
+       <origin xyz="0.0023115 -0.0028436 -0.0021959" rpy="0 0 0" />
+       <mass value="1" />
+       <inertia ixx="0.00066669" ixy="2.258E-05" ixz="-6.07E-05" iyy="0.0010435" iyz="-2.091E-05" izz="0.00064103" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_scapula_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_scapula_roll_joint" type="revolute">
+     <origin xyz="-0.060685736475412 -0.0540000000000759 0.241631706091158" rpy="0 -0.006144062842914 0" />
+     <parent link="waist_yaw_link" />
+     <child link="right_scapula_roll_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-0.20944" upper="0" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- right_shoulder_roll_link: 小型连接件，移除碰撞 -->
+   <link name="right_shoulder_roll_link">
+     <inertial>
+       <origin xyz="-3.9962E-05 0.0043747 -8.6964E-09" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.00073254" ixy="0" ixz="0" iyy="0.00039765" iyz="0" izz="0.000458" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_shoulder_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.75294 0.75294 0.75294 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_shoulder_pitch_joint" type="revolute">
+     <origin xyz="0 -0.0694999999999175 3.26695449071046E-05" rpy="0 0 0" />
+     <parent link="right_scapula_roll_link" />
+     <child link="right_shoulder_roll_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-3.0543" upper="0.5236" effort="15" velocity="15.708" />
+   </joint>
+ 
+   <!-- right_shoulder_pitch_link: 小型连接件，移除碰撞 -->
+   <link name="right_shoulder_pitch_link">
+     <inertial>
+       <origin xyz="0.0014646 -0.098137 -0.0053182" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.010468" ixy="0.00015791" ixz="4.202E-05" iyy="0.0011746" iyz="0.00066172" izz="0.0106" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_shoulder_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_shoulder_roll_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="right_shoulder_roll_link" />
+     <child link="right_shoulder_pitch_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-1.5707963" upper="1.5707963" effort="15" velocity="15.708" />
+   </joint>
+ 
+   <!-- right_shoulder_yaw_link: 大臂段(~133mm，沿-y方向)，用圆柱近似 -->
+   <link name="right_shoulder_yaw_link">
+     <inertial>
+       <origin xyz="-0.0043852 -0.088406 -0.0073575" rpy="0 0 0" />
+       <mass value="0.095225" />
+       <inertia ixx="0.001021" ixy="7.8531E-06" ixz="1.7083E-07" iyy="2.1572E-05" iyz="8.345E-05" izz="0.0010257" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_shoulder_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="0.89804 0.91765 0.92941 1" /></material>
+     </visual>
+     <!-- 圆柱沿-y方向，近端偏置至y=-0.058与左臂对称（胶囊近端≈-0.003m） -->
+     <collision>
+       <origin xyz="-0.004 -0.058 -0.005" rpy="1.5708 0 0" />
+       <geometry><cylinder radius="0.030" length="0.050" /></geometry>
+     </collision>
+     <!-- 关节处偏置小圆柱（仿x2，覆盖大臂末端与肘关节之间盲区，x=-0.015偏置，与左臂对称） -->
+     <collision>
+       <origin xyz="-0.015 -0.108 -0.005" rpy="1.5708 0 0" />
+       <geometry><cylinder radius="0.025" length="0.030" /></geometry>
+     </collision>
+   </link>
+   <joint name="right_shoulder_yaw_joint" type="revolute">
+     <origin xyz="0 -0.0959999999997083 -0.00500000000001299" rpy="0 0 0" />
+     <parent link="right_shoulder_pitch_link" />
+     <child link="right_shoulder_yaw_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-1.047197551" upper="1.047197551" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- right_elbow_link: 前臂段(~228mm，沿-y方向)，用圆柱近似 -->
+   <link name="right_elbow_link">
+     <inertial>
+       <origin xyz="0.0045007 -0.10347 0.00022591" rpy="0 0 0" />
+       <mass value="0.7" />
+       <inertia ixx="0.01042857" ixy="-0.00042932" ixz="-8.1315E-08" iyy="0.0005627" iyz="-1.9969E-06" izz="0.01039857" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_elbow_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 前臂碰撞体缩短变细，避开肘/腕关节附近的自碰撞 -->
+     <collision>
+       <origin xyz="0 -0.145 0" rpy="1.5708 0 0" />
+       <geometry><cylinder radius="0.025" length="0.080" /></geometry>
+     </collision>
+   </link>
+   <joint name="right_elbow_joint" type="revolute">
+     <origin xyz="-0.00879978664812137 -0.133000000000268 -0.010000000002981" rpy="0 0 -1.08299254783319E-05" />
+     <parent link="right_shoulder_yaw_link" />
+     <child link="right_elbow_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="0" upper="2.35619449" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- right_wrist_yaw_link: 微型连接件，移除碰撞 -->
+   <link name="right_wrist_yaw_link">
+     <inertial>
+       <origin xyz="0.002125 -0.044994 0.0019286" rpy="0 0 0" />
+       <mass value="0.052405" />
+       <inertia ixx="0.00018236" ixy="2.7274E-06" ixz="-2.4434E-07" iyy="9.5628E-06" iyz="3.2468E-06" izz="0.0001827" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_wrist_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="0.89804 0.91765 0.92941 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_wrist_yaw_joint" type="revolute">
+     <origin xyz="0.00199999999805286 -0.0939999458229315 0" rpy="0 0 0" />
+     <parent link="right_elbow_link" />
+     <child link="right_wrist_yaw_link" />
+     <axis xyz="0 1 0" />
+     <limit lower="-0.87266" upper="0.87266" effort="6" velocity="12.566" />
+   </joint>
+ 
+   <!-- right_wrist_roll_link: 手部用box近似(沿-y展开) -->
+   <link name="right_wrist_roll_link">
+     <inertial>
+       <origin xyz="-2.3929E-10 -4.9855E-09 0.0010567" rpy="0 0 0" />
+       <mass value="0.0018868" />
+       <inertia ixx="1.584E-08" ixy="1.2193E-12" ixz="1.2828E-13" iyy="1.1887E-07" iyz="-1.0263E-13" izz="1.0848E-07" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_wrist_roll_link.STL" /></geometry>
+       <material name=""><color rgba="0.89804 0.91765 0.92941 1" /></material>
+     </visual>
+     <!-- 手部 box 保守缩小，避免与前臂/身体产生自碰撞 -->
+     <collision>
+       <origin xyz="0.015 -0.045 -0.015" rpy="0 0 0" />
+       <geometry><box size="0.045 0.060 0.030" /></geometry>
+     </collision>
+   </link>
+   <joint name="right_wrist_roll_joint" type="revolute">
+     <origin xyz="0.00449961558009879 -0.134000059567382 -0.000857792971903137" rpy="0 0 0" />
+     <parent link="right_wrist_yaw_link" />
+     <child link="right_wrist_roll_link" />
+     <axis xyz="0 0 1" />
+     <limit lower="-0.34907" upper="0.34907" effort="3" velocity="16.441" />
+   </joint>
+ 
+   <!-- right_wrist_pitch_link: 手指处，移除碰撞 -->
+   <link name="right_wrist_pitch_link">
+     <inertial>
+       <origin xyz="0.014692 -0.076244 -0.018529" rpy="0 0 0" />
+       <mass value="0.4" />
+       <inertia ixx="0.0032648" ixy="-0.000456" ixz="-0.00013419" iyy="0.00054067" iyz="0.00071989" izz="0.0033129" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/right_wrist_pitch_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="right_wrist_pitch_joint" type="revolute">
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <parent link="right_wrist_roll_link" />
+     <child link="right_wrist_pitch_link" />
+     <axis xyz="1 0 0" />
+     <limit lower="-1.221730476" upper="1.221730476" effort="3" velocity="16.441" />
+   </joint>
+ 
+   <!-- =================== NECK / IMU (torso) =============== -->
+ 
+   <!-- neck_yaw_link: 固定在躯干，移除碰撞（含头部质量） -->
+   <link name="neck_yaw_link">
+     <inertial>
+       <origin xyz="0.036694 3.6482E-05 0.17674" rpy="0 0 0" />
+       <mass value="2" />
+       <inertia ixx="0.074074" ixy="-6.7E-07" ixz="0.012833" iyy="0.0776" iyz="1.466E-05" izz="0.011388" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/neck_yaw_link.STL" /></geometry>
+       <material name=""><color rgba="1 1 1 1" /></material>
+     </visual>
+     <!-- 无碰撞（固定于躯干） -->
+   </link>
+   <joint name="neck_yaw_joint" type="fixed">
+     <origin xyz="-0.0606797931696515 0 0.240664393894157" rpy="0 -0.006144062842914 0" />
+     <parent link="waist_yaw_link" />
+     <child link="neck_yaw_link" />
+     <axis xyz="0 0 0" />
+     <limit lower="-1.570796327" upper="1.570796327" effort="6" velocity="12.56637061" />
+   </joint>
+ 
+   <!-- imu_in_torso_link: 传感器，无需碰撞 -->
+   <link name="imu_in_torso_link">
+     <inertial>
+       <origin xyz="-0.00084123 -0.00031758 0.0013238" rpy="0 0 0" />
+       <mass value="0.0043067" />
+       <inertia ixx="2.1185E-07" ixy="-7.4473E-11" ixz="3.4054E-09" iyy="2.0537E-07" iyz="-3.7774E-11" izz="3.5934E-07" />
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0" />
+       <geometry><mesh filename="meshes/imu_in_torso_link.STL" /></geometry>
+       <material name=""><color rgba="0.50196 0.50196 0.50196 1" /></material>
+     </visual>
+     <!-- 无碰撞 -->
+   </link>
+   <joint name="imu_in_torso_joint" type="fixed">
+     <origin xyz="-0.0581647890982874 -0.000319999999999894 0.106394642294608" rpy="0 0 0" />
+     <parent link="waist_yaw_link" />
+     <child link="imu_in_torso_link" />
+     <axis xyz="0 0 0" />
+   </joint>
+ 
+ </robot>
+ 

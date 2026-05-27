@@ -7,3 +7,5 @@ run_bash.sh
 wandb
 MUJOCO_LOG.TXT
 .history
+*.pkl
+*.npz
