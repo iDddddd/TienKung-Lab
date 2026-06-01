@@ -70,12 +70,12 @@ class AMPLoaderDisplay:
                 # Remove first 7 observation dimensions (root_pos and root_orn).
                 self.trajectories.append(
                     torch.tensor(
-                        motion_data[:, : AMPLoaderDisplay.JOINT_VEL_END_IDX], dtype=torch.float32, device=device
+                        motion_data[:, : type(self).JOINT_VEL_END_IDX], dtype=torch.float32, device=device
                     )
                 )
                 self.trajectories_full.append(
                     torch.tensor(
-                        motion_data[:, : AMPLoaderDisplay.JOINT_VEL_END_IDX], dtype=torch.float32, device=device
+                        motion_data[:, : type(self).JOINT_VEL_END_IDX], dtype=torch.float32, device=device
                     )
                 )
                 self.trajectory_idxs.append(i)
@@ -177,22 +177,22 @@ class AMPLoaderDisplay:
         idx_low, idx_high = np.floor(p * n).astype(np.int), np.ceil(p * n).astype(np.int)
         all_frame_amp_starts = torch.zeros(
             len(traj_idxs),
-            AMPLoaderDisplay.JOINT_VEL_END_IDX - AMPLoaderDisplay.JOINT_POSE_START_IDX,
+            type(self).JOINT_VEL_END_IDX - type(self).JOINT_POSE_START_IDX,
             device=self.device,
         )
         all_frame_amp_ends = torch.zeros(
             len(traj_idxs),
-            AMPLoaderDisplay.JOINT_VEL_END_IDX - AMPLoaderDisplay.JOINT_POSE_START_IDX,
+            type(self).JOINT_VEL_END_IDX - type(self).JOINT_POSE_START_IDX,
             device=self.device,
         )
         for traj_idx in set(traj_idxs):
             trajectory = self.trajectories_full[traj_idx]
             traj_mask = traj_idxs == traj_idx
             all_frame_amp_starts[traj_mask] = trajectory[idx_low[traj_mask]][
-                :, AMPLoaderDisplay.JOINT_POSE_START_IDX : AMPLoaderDisplay.JOINT_VEL_END_IDX
+                :, type(self).JOINT_POSE_START_IDX : type(self).JOINT_VEL_END_IDX
             ]
             all_frame_amp_ends[traj_mask] = trajectory[idx_high[traj_mask]][
-                :, AMPLoaderDisplay.JOINT_POSE_START_IDX : AMPLoaderDisplay.JOINT_VEL_END_IDX
+                :, type(self).JOINT_POSE_START_IDX : type(self).JOINT_VEL_END_IDX
             ]
         blend = torch.tensor(p * n - idx_low, device=self.device, dtype=torch.float32).unsqueeze(-1)
 
@@ -231,8 +231,11 @@ class AMPLoaderDisplay:
         Returns:
             An interpolation of the two frames.
         """
-        joints0, joints1 = AMPLoaderDisplay.get_joint_pose(frame0), AMPLoaderDisplay.get_joint_pose(frame1)
-        joint_vel_0, joint_vel_1 = AMPLoaderDisplay.get_joint_vel(frame0), AMPLoaderDisplay.get_joint_vel(frame1)
+        cls = type(self)
+        joints0 = frame0[cls.JOINT_POSE_START_IDX : cls.JOINT_POSE_END_IDX]
+        joints1 = frame1[cls.JOINT_POSE_START_IDX : cls.JOINT_POSE_END_IDX]
+        joint_vel_0 = frame0[cls.JOINT_VEL_START_IDX : cls.JOINT_VEL_END_IDX]
+        joint_vel_1 = frame1[cls.JOINT_VEL_START_IDX : cls.JOINT_VEL_END_IDX]
 
         blend_joint_q = self.slerp(joints0, joints1, blend)
         blend_joints_vel = self.slerp(joint_vel_0, joint_vel_1, blend)
@@ -244,9 +247,9 @@ class AMPLoaderDisplay:
         for _ in range(num_mini_batch):
             if self.preload_transitions:
                 idxs = np.random.choice(self.preloaded_s.shape[0], size=mini_batch_size)
-                s = self.preloaded_s[idxs, AMPLoaderDisplay.JOINT_POSE_START_IDX : AMPLoaderDisplay.JOINT_VEL_END_IDX]
+                s = self.preloaded_s[idxs, type(self).JOINT_POSE_START_IDX : type(self).JOINT_VEL_END_IDX]
                 s_next = self.preloaded_s_next[
-                    idxs, AMPLoaderDisplay.JOINT_POSE_START_IDX : AMPLoaderDisplay.JOINT_VEL_END_IDX
+                    idxs, type(self).JOINT_POSE_START_IDX : type(self).JOINT_VEL_END_IDX
                 ]
             else:
                 s, s_next = [], []

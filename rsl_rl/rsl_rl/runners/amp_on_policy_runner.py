@@ -37,7 +37,7 @@ from rsl_rl.modules import (
     StudentTeacher,
     StudentTeacherRecurrent,
 )
-from rsl_rl.utils import AMPLoader, Normalizer, store_code_state
+from rsl_rl.utils import AMPLoader, Normalizer, store_code_state, string_to_callable
 
 
 class AmpOnPolicyRunner:
@@ -108,7 +108,12 @@ class AmpOnPolicyRunner:
             self.alg_cfg["symmetry_cfg"]["_env"] = env
 
         # init amp loader
-        amp_data = AMPLoader(
+        amp_loader_class_name = train_cfg.get("amp_loader_class_name", "AMPLoader")
+        if amp_loader_class_name == "AMPLoader":
+            amp_loader_class = AMPLoader
+        else:
+            amp_loader_class = string_to_callable(amp_loader_class_name)
+        amp_data = amp_loader_class(
             device,
             time_between_frames=self.env.step_dt,
             preload_transitions=True,

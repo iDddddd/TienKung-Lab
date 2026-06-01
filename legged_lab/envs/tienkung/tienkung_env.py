@@ -125,41 +125,8 @@ class TienKungEnv(VecEnv):
         )
         self.motion_len = self.amp_loader_display.trajectory_num_frames[0]
 
-    def init_buffers(self):
-        self.extras = {}
-
-        self.max_episode_length_s = self.cfg.scene.max_episode_length_s
-        self.max_episode_length = np.ceil(self.max_episode_length_s / self.step_dt)
-        self.num_actions = self.robot.data.default_joint_pos.shape[1]
-        self.clip_actions = self.cfg.normalization.clip_actions
-        self.clip_obs = self.cfg.normalization.clip_observations
-
-        self.action_scale = self.cfg.robot.action_scale
-        self.action_buffer = DelayBuffer(
-            self.cfg.domain_rand.action_delay.params["max_delay"], self.num_envs, device=self.device
-        )
-        self.action_buffer.compute(
-            torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
-        )
-        if self.cfg.domain_rand.action_delay.enable:
-            time_lags = torch.randint(
-                low=self.cfg.domain_rand.action_delay.params["min_delay"],
-                high=self.cfg.domain_rand.action_delay.params["max_delay"] + 1,
-                size=(self.num_envs,),
-                dtype=torch.int,
-                device=self.device,
-            )
-            self.action_buffer.set_time_lag(time_lags, torch.arange(self.num_envs, device=self.device))
-
-        self.robot_cfg = SceneEntityCfg(name="robot")
-        self.robot_cfg.resolve(self.scene)
-        self.termination_contact_cfg = SceneEntityCfg(
-            name="contact_sensor", body_names=self.cfg.robot.terminate_contacts_body_names
-        )
-        self.termination_contact_cfg.resolve(self.scene)
-        self.feet_cfg = SceneEntityCfg(name="contact_sensor", body_names=self.cfg.robot.feet_body_names)
-        self.feet_cfg.resolve(self.scene)
-
+    def _init_body_joint_ids(self):
+        """Look up robot body / joint indices by name. Override in subclasses for different robots."""
         self.feet_body_ids, _ = self.robot.find_bodies(
             name_keys=["ankle_roll_l_link", "ankle_roll_r_link"], preserve_order=True
         )
@@ -210,6 +177,43 @@ class TienKungEnv(VecEnv):
             name_keys=["ankle_pitch_l_joint", "ankle_pitch_r_joint", "ankle_roll_l_joint", "ankle_roll_r_joint"],
             preserve_order=True,
         )
+
+    def init_buffers(self):
+        self.extras = {}
+
+        self.max_episode_length_s = self.cfg.scene.max_episode_length_s
+        self.max_episode_length = np.ceil(self.max_episode_length_s / self.step_dt)
+        self.num_actions = self.robot.data.default_joint_pos.shape[1]
+        self.clip_actions = self.cfg.normalization.clip_actions
+        self.clip_obs = self.cfg.normalization.clip_observations
+
+        self.action_scale = self.cfg.robot.action_scale
+        self.action_buffer = DelayBuffer(
+            self.cfg.domain_rand.action_delay.params["max_delay"], self.num_envs, device=self.device
+        )
+        self.action_buffer.compute(
+            torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
+        )
+        if self.cfg.domain_rand.action_delay.enable:
+            time_lags = torch.randint(
+                low=self.cfg.domain_rand.action_delay.params["min_delay"],
+                high=self.cfg.domain_rand.action_delay.params["max_delay"] + 1,
+                size=(self.num_envs,),
+                dtype=torch.int,
+                device=self.device,
+            )
+            self.action_buffer.set_time_lag(time_lags, torch.arange(self.num_envs, device=self.device))
+
+        self.robot_cfg = SceneEntityCfg(name="robot")
+        self.robot_cfg.resolve(self.scene)
+        self.termination_contact_cfg = SceneEntityCfg(
+            name="contact_sensor", body_names=self.cfg.robot.terminate_contacts_body_names
+        )
+        self.termination_contact_cfg.resolve(self.scene)
+        self.feet_cfg = SceneEntityCfg(name="contact_sensor", body_names=self.cfg.robot.feet_body_names)
+        self.feet_cfg.resolve(self.scene)
+
+        self._init_body_joint_ids()
 
         self.obs_scales = self.cfg.normalization.obs_scales
         self.add_noise = self.cfg.noise.add_noise
