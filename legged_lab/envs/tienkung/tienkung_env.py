@@ -521,6 +521,8 @@ class TienKungEnv(VecEnv):
         )
         time_out_buf = self.episode_length_buf >= self.max_episode_length
         reset_buf |= time_out_buf
+        if self.cfg.robot.base_min_height > 0.0:
+            reset_buf |= self.robot.data.root_state_w[:, 2] < self.cfg.robot.base_min_height
         return reset_buf, time_out_buf
 
     def init_obs_buffer(self):

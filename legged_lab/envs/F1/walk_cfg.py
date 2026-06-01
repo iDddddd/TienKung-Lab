@@ -174,8 +174,8 @@ class F1WalkFlatEnvCfg:
         num_envs=4096,
         env_spacing=2.5,
         robot=F1_CFG,
-        terrain_type="generator",
-        terrain_generator=GRAVEL_TERRAINS_CFG,
+        terrain_type="plane",
+        terrain_generator=None,
         max_init_terrain_level=5,
         height_scanner=HeightScannerCfg(
             enable_height_scan=False,
@@ -192,6 +192,7 @@ class F1WalkFlatEnvCfg:
         action_scale=0.40,  # increased from 0.25; knee needs [0.03,1.37] range (37%→59% coverage)
         terminate_contacts_body_names=[".*_knee_link", ".*_elbow_link", "pelvis"],
         feet_body_names=[".*_ankle_roll_link"],
+        base_min_height=0.57,  # expert walk z_min=0.822m; threshold=0.822-0.25=0.572→0.57m
     )
     reward = F1RewardCfg()
     gait = GaitCfg()
@@ -218,7 +219,9 @@ class F1WalkFlatEnvCfg:
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=CommandRangesCfg(
-            lin_vel_x=(0.0, 0.5), lin_vel_y=(-0.2, 0.2), ang_vel_z=(-0.7, 0.7), heading=(-math.pi, math.pi)
+            # aligned with expert walk_eight data (p5–p95 range):
+            # vx∈[-0.85,0.76]  vy∈[-1.06,1.10]  wz∈[-1.70,1.96]
+            lin_vel_x=(-0.9, 0.8), lin_vel_y=(-1.1, 1.1), ang_vel_z=(-1.7, 2.0), heading=(-math.pi, math.pi)
         ),
     )
     noise: NoiseCfg = NoiseCfg(
@@ -330,8 +333,8 @@ class F1WalkAgentCfg(RslRlOnPolicyRunnerCfg):
     neptune_project = "f1_walk"
     wandb_project = "f1_walk"
     resume = False
-    load_run = ".*"
-    load_checkpoint = "model_.*.pt"
+    load_run = "2026-05-31_16-19-38_walk"  # explicit: 40k-iter run; use ".*" to auto-pick latest
+    load_checkpoint = "model_40000.pt"
 
     # AMP parameters
     # F1AMPLoader handles the 74-dim AMP observation

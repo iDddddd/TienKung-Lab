@@ -75,23 +75,19 @@ def play():
     env_cfg.scene.num_envs = 50
     env_cfg.scene.env_spacing = 2.5
     env_cfg.commands.rel_standing_envs = 0.0
-    env_cfg.commands.ranges.lin_vel_x = (1.0, 1.0)
-    env_cfg.commands.ranges.lin_vel_y = (0.0, 0.0)
     env_cfg.scene.height_scanner.drift_range = (0.0, 0.0)
 
     env_cfg.scene.terrain_generator = None
     env_cfg.scene.terrain_type = "plane"
 
-    if env_cfg.scene.terrain_generator is not None:
-        env_cfg.scene.terrain_generator.num_rows = 5
-        env_cfg.scene.terrain_generator.num_cols = 5
-        env_cfg.scene.terrain_generator.curriculum = False
-        env_cfg.scene.terrain_generator.difficulty_range = (0.4, 0.4)
+    # Use the trained command range max to avoid OOD observations.
+    # Hardcoding 1.0 m/s can exceed training range and cause immediate falls.
+    trained_max_vx = env_cfg.commands.ranges.lin_vel_x[1]
+    env_cfg.commands.ranges.lin_vel_x = (trained_max_vx, trained_max_vx)
+    env_cfg.commands.ranges.lin_vel_y = (0.0, 0.0)
 
     if args_cli.num_envs is not None:
         env_cfg.scene.num_envs = args_cli.num_envs
-
-    agent_cfg = update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.seed = agent_cfg.seed
 
     env_class = task_registry.get_task_class(env_class_name)

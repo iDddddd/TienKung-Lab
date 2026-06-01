@@ -66,6 +66,7 @@ class RobotCfg:
     action_scale: float = 0.25
     terminate_contacts_body_names: list = []
     feet_body_names: list = []
+    base_min_height: float = 0.0  # reset when root z < this value; 0.0 = disabled
 
 
 @configclass
